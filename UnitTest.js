@@ -12,11 +12,17 @@ SelectorUnitTest.prototype = {
         if (!node) node = this.element;
         if (!selectLib) selectLib = this.selectorLibrary;
         this.testCount++;
-        var nodePath = node.getPath(),
-            children = node.children(),
+        var children = node.children(),
             self = this;
-        if (node[0] !== selectLib(nodePath)[0])
+        try {
+            var nodePath = node.getPath();
+            if (node[0] !== selectLib(nodePath)[0])
+                self.fails[nodePath] = node;
+        } catch (e) {
             self.fails[nodePath] = node;
+            console.warn(e.name);
+            console.warn(e.message);
+        }
         //else
         //console.log(nodePath + " is a match!");
         children.each(function() {
@@ -35,7 +41,7 @@ SelectorUnitTest.prototype = {
         this.testCount = 0;
         this.fails = {};
         this.testNode(startNode, selectLib);
-        console.warn(this.getFailsCount() + "/" + this.testCount + " element tested fails! That's a " +
+        console.warn(this.getFailsCount() + "/" + this.testCount + " element tested failed! That's a " +
             (((this.testCount - this.getFailsCount()) / this.testCount) * 100).toFixed(2) + "% success rate!");
         return this.fails;
     }
