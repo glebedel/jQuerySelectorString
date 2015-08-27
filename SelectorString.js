@@ -4,19 +4,32 @@
  * @version 0.3 
  */
 
-//Extend the jQuery object with our SelectorString object
-jQuery.extend(jQuery, {
+//Extend the $ object with our SelectorString object
+$.extend($, {
     SelectorString: {
         //enable or disable the use of classes in selector paths
         useClasses: true,
+        useIDs: true,
         //stores all the classes we want to exclude from selector paths
         excludedClasses: [],
+        dynamicDetectClasses: {
+            functions: ["addClass"],
+            properties: [".className"]
+        },
+        excludedIDs: [],
+        dynamicDetectIDs: {
+            functions: ["setAttr"],
+            properties: [".id"]
+        },
         /**
          * add a class string to the excluded classes array
-         * @param {string} classString the string of the class we want to be excluded from selector paths
+         * @param {string or array} classes the string of the class we want to be excluded from selector paths
          */
-        addExcludedClass: function(classString) {
-            this.excludedClasses.push(classString);
+        addExcludedClass: function(classes) {
+            if (typeof(classes) !== "string")
+                this.excludedClasses.concat(classes)
+            else
+                this.excludedClasses.push(classes);
         },
         /**
          * remove a class from the excluded class array
@@ -24,18 +37,38 @@ jQuery.extend(jQuery, {
          */
         removeExcludedClass: function(classString) {
             this.excludedClasses.splice(this.excludedClasses.indexOf(classString), 1);
+        },
+        excludeDynamics: function() {
+            //key is name of the function and value is its following character
+            var scripts = $("script");
+            var scriptsContent = "";
+            scripts.each(function(index, value) {
+                scriptsContent += $(value).text();
+            });
+            var res;
+            var reg;
+            var excludeArray = this.dynamicDetectClasses.functions;
+            for (var i = 0; i < excludeArray.length; i++) {
+                reg = new RegExp(excludeArray[i] + "\\s*\\(['\"]([\\w-]*)", "g")
+                if ((res = reg.exec(scriptsContent))) this.addExcludedClass(res.shift());
+            }
+            excludeArray = this.dynamicDetectClasses.properties;
+            for (var i = 0; i < excludeArray.length; i++) {
+                reg = new RegExp(excludeArray[i] + "\\s*[+-=]*\\s*['\"]\\s*([\\w-]+)['\"]", "g");
+                if ((res = reg.exec(scriptsContent))) this.addExcludedClass(res.shift());
+            }
         }
     }
 });
 
-jQuery.fn.extend({
+$.fn.extend({
     /**
      * creates a unique selector string for the fn element
      * @param  {boolean} useClasses true if we want to use classes in the selector string
      * @return {string}            a unique selector string for the current node
      */
     getPath: function(useClasses) {
-        if (typeof useClasses === "undefined") useClasses = jQuery.SelectorString.useClasses;
+        if (typeof useClasses === "undefined") useClasses = $.SelectorString.useClasses;
         var path, node = this;
         // traverse the node tree up
         while (node.length) {
@@ -58,12 +91,12 @@ jQuery.fn.extend({
     },
     /**
      * gets the best selector of a node relative to its parent
-     * @param  {jQuery object} parent       parent of the node
+     * @param  {$ object} parent       parent of the node
      * @param  {boolean} useClasses         do we want to use classes to find the best selector
      * @return {string}                     the selector representing the best path of the node to its parent
      */
     getSelectorToParent: function(parent, useClasses) {
-        if (typeof useClasses === "undefined") useClasses = jQuery.SelectorString.useClasses;
+        if (typeof useClasses === "undefined") useClasses = $.SelectorString.useClasses;
         if (!parent) parent = this.parent();
         var domNode = this[0],
             selector = domNode.localName,
@@ -80,7 +113,7 @@ jQuery.fn.extend({
             bestClassIndex = -1;
             //find the class which identifies our node the best comapred to its parent
             for (var i = 0; i < classes.length && bestResult > 1; i++) {
-                if (classes[i].length === 0 || jQuery.SelectorString.excludedClasses.indexOf(classes[i]) > -1) break;
+                if (classes[i].length === 0 || $.SelectorString.excludedClasses.indexOf(classes[i]) > -1) break;
                 childResults = parent.children(selector + "." + classes[i]);
                 if (childResults.length < bestResult) {
                     bestResult = childResults.length;
